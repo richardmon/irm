@@ -33,6 +33,29 @@ fn main() -> std::io::Result<()> {
                     )),
                     ResetColor
                 )?;
+                // Start the progress bar
+                let pb = indicatif::ProgressBar::new(100);
+                pb.set_style(
+                    indicatif::ProgressStyle::default_bar()
+                        .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {bytes}/{total_bytes} ({eta}) \n{msg}").unwrap()
+                        .progress_chars("#>-")
+                    );
+                pb.set_position(0);
+
+                let mut progress = 0;
+                for entry in walkdir::WalkDir::new(file) {
+                    let entry = entry.unwrap();
+                    if entry.path().is_file() {
+                        progress += entry.metadata().unwrap().len();
+                        std::fs::remove_file(entry.path()).unwrap();
+                        pb.set_position(progress);
+                        pb.set_message(format!("Deleting: {}", entry.path().display()));
+                        // slip for a second
+                        // std::thread::sleep(std::time::Duration::from_secs(1));
+                    }
+                }
+                std::fs::remove_dir(&file)?;
+                pb.finish();
             }
         } else {
             execute!(
@@ -133,9 +156,4 @@ mod tests {
     fn test_human_readable_tb() {
         assert_eq!(human_readable_size(1024 * 1024 * 1024 * 1024), "1.00 TB");
     }
-}
-
-fn validate_file(file: &PathBuf) -> std::io::Result<u64> {
-    let file = file.canonicalize().unwrap();
-    Ok(file.metadata().unwrap().len())
 }
